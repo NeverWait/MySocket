@@ -3,6 +3,7 @@
     > Author: Yonqi
     > Mail: haidaiheshi@126.com
     > Created Time: 2016年04月27日 星期三 21时57分10秒
+    这是一个网络计算器的服务端
 注释1 结构体
  struct sockaddr_in
  {
@@ -53,16 +54,19 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #define BUF_SIZE 1024
-
+#define OPSZ 4
 void error_handling(char *message);
+int calculate(int opnum, int opnds[], char oprator);
 int main(int argc, char *argv[])
 {
-    int serv_sock;  // 定义这个做什么？
+    int serv_sock;
     int clnt_sock;
+    char opinfo[BUF_SIZE];
+    int result, opnd_cnt, i;
+    int recv_cnt, recv_len;
     struct sockaddr_in serv_addr;  // 注释1
     struct sockaddr_in clnt_addr;
     socklen_t clnt_addr_size;  // int类型
-    char message[] = "hello";
     if(argc != 2){
         printf("Usage: %s <port>\n", argv[0]);
         exit(1);
@@ -72,23 +76,53 @@ int main(int argc, char *argv[])
         error_handling("socket() error");
     }
     memset(&serv_addr, 0, sizeof(serv_addr));
-    serv_addr.sin_famliy = AF_INET;
+    serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);  //sin_addr应该是server internet address的简称;ｓ_addr应该是server address的简称？INADDR_ANY可以单独使用码？
     serv_addr.sin_port = htons(atoi(argv[1]));  // 注释3
-    if(bind(serv_sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr))==-1){
+    if(bind(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))==-1){
         error_handling("bind() error");  // 注释4
     }
     if(listen(serv_sock, 5) == -1){  //监听创建的套接字,5表示最大的连接请求队列长度,表示可以最多有5个连接请求进入队列
         error_handling("listen() error");
     }
     clnt_addr_size = sizeof(clnt_addr);
-    clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &clnt_addr_size);  //注释5,受理请求队列中的连接请求
-    if(clnt_sock==-1){
-        error_handling("bind() error");
+    for(i=0;i<5;i++){
+        opnd_cnt = 0;
+        clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &clnt_addr_size);  //注释5,受理请求队列中的连接请求
+        read(clnt_sock, &opnd_cnt, 1);
+        recv_len = 0;
+        while((opnd_cnt*OPSZ+1)>recv_len){
+            recv_cnt = read(clnt_sock, &opinfo[recv_len], BUF_SIZE-1);
+            recv_len += recv_cnt;
+        }
+        result = calculate(opnd_cnt, (int*)opinfo, opinfo[recv_len-1]);
+        write(clnt_sock, (char*)&result, sizeof(result));
+        close(clnt_sock);
     }
-    write(clnt_sock, message, sizeof(message));
-    close(clnt_sock);
     close(serv_sock);
+    return 0;
+}
+int calculate(int opnum ,int opnds[], char op)
+{
+    int result = opnds[0], i;
+    switch(op){
+        case '+':
+            for(i=1;i<opnum;i++){
+                result += opnds[i];
+            }
+            break;
+        case '-':
+            for(i=1;i<opnum;i++){
+                result = result - opnds[i];
+            }
+            break;
+        case '*':
+            for(i=1;i<opnum;i++){
+                result *= opnds[i];
+            }
+            break;
+    }
+    return result;
 }
 void error_handling(char *message)
 {
