@@ -75,13 +75,13 @@ int main(int argc, char *argv[])
     opmsg[0] = (char)opnd_cnt;
     for(i=0;i<opnd_cnt;i++){
         printf("operand%d: ", i+1);
-        scanf("%d", (int*)&opmsg[i*OPSZ+1]);  // 这行什么意思
+        scanf("%d", (int*)&opmsg[i*OPSZ+1]);
     }
     fgetc(stdin);
     fputs("operator:", stdout);
     scanf("%c", &opmsg[opnd_cnt*OPSZ+1]);
     write(sock, opmsg, opnd_cnt*OPSZ+2); // 注释4
-    read(sock, &result, RLT_SIZE);   // 后两个参数前面没有进行赋值  //注释5
+    read(sock, &result, RLT_SIZE);   //注释5
     printf("operator result:%d \n", result);
     close(sock);
     return 0;
