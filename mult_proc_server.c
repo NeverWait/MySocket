@@ -3,7 +3,7 @@
     > Author: Yonqi
     > Mail: haidaiheshi@126.com
     > Created Time: 2016年05月02日 星期日 15时56分46秒
-注释1
+服务多个client的回声系统
 ***************************************************/
 #include <stdio.h>
 #include <string.h>
@@ -61,10 +61,6 @@ int main(int argc, char *argv[])
             printf("new client connected...\n");
         }
         pid = fork();
-        if(pid==-1){
-            close(clnt_sock);
-            continue;
-        }
         if(pid==0){
             close(serv_sock);
             while((str_len=read(clnt_sock, buf, BUF_SIZE))!=0){
