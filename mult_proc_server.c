@@ -3,7 +3,9 @@
     > Author: Yonqi
     > Mail: haidaiheshi@126.com
     > Created Time: 2016年05月02日 星期日 15时56分46秒
-服务多个client的回声系统
+服务多个client的回声系统,由管道传递信息,并将客户端发的信息写到文件中,
+使用到的知识点:
+信号机制,多进程机制,socket,管道通信
 ***************************************************/
 #include <stdio.h>
 #include <string.h>
@@ -23,10 +25,13 @@ void read_child_proc(int sig)
         printf("removed proc id: %d\n", id);
     }
 }
+
 int main(int argc, char *argv[])
 {
     int serv_sock, clnt_sock;;
     struct sockaddr_in serv_addr, clnt_addr;
+    int fds[2];
+
     pid_t pid;
     struct sigaction act;
     socklen_t adr_sz;
@@ -40,17 +45,34 @@ int main(int argc, char *argv[])
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     state = sigaction(SIGCHLD, &act, 0);
+
     serv_sock = socket(PF_INET, SOCK_STREAM, 0);
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(atoi(argv[1]));
+
     if(bind(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))==-1){
         printf("bind error\n");
     }
     if(listen(serv_sock, 5)==-1){
         printf("listen error\n");
     }
+    pipe(fds);
+    pid = fork();
+
+    if(pid==0){
+        FILE *fp = fopen("echomsg.txt", "wt");
+        char msgbuf[BUF_SIZE];
+        int i, len;
+        for(i=0;i<10;i++){
+            len = read(fds[0], msgbuf, BUF_SIZE);
+            fwrite((void*)msgbuf, 1, len, fp);
+        }
+        fclose(fp);
+        return 0;
+    }
+
     while(1){
         adr_sz = sizeof(clnt_addr);
         clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &adr_sz);
@@ -65,6 +87,7 @@ int main(int argc, char *argv[])
             close(serv_sock);
             while((str_len=read(clnt_sock, buf, BUF_SIZE))!=0){
                 write(clnt_sock, buf, str_len);
+                write(fds[1], buf, str_len);
             }
             close(clnt_sock);
             printf("client disconnected...\n");
